@@ -55,20 +55,16 @@ public class GitLabPushTrigger extends Trigger<AbstractProject<?, ?>> {
     private boolean setBuildDescription = true;
     private boolean addNoteOnMergeRequest = true;
     private boolean addVoteOnMergeRequest = true;
-    private boolean allowAllBranches = false;
 
-    private List<String> allowedBranches;
+    private String allowedSourceBranches;
 
     // compatibility with earlier plugins
     public Object readResolve() {
-        if (null == allowedBranches) {
-        	allowedBranches = new ArrayList<String>();
-        }               
         return this;
     }
 
     @DataBoundConstructor
-    public GitLabPushTrigger(boolean triggerOnPush, boolean triggerOnMergeRequest, boolean triggerOpenMergeRequestOnPush, boolean ciSkip, boolean setBuildDescription, boolean addNoteOnMergeRequest, boolean addVoteOnMergeRequest, boolean allowAllBranches, List<String> allowedBranches) {
+    public GitLabPushTrigger(boolean triggerOnPush, boolean triggerOnMergeRequest, boolean triggerOpenMergeRequestOnPush, boolean ciSkip, boolean setBuildDescription, boolean addNoteOnMergeRequest, boolean addVoteOnMergeRequest, String allowedSourceBranches) {
         this.triggerOnPush = triggerOnPush;
         this.triggerOnMergeRequest = triggerOnMergeRequest;
         this.triggerOpenMergeRequestOnPush = triggerOpenMergeRequestOnPush;
@@ -76,8 +72,8 @@ public class GitLabPushTrigger extends Trigger<AbstractProject<?, ?>> {
         this.setBuildDescription = setBuildDescription;
 	this.addNoteOnMergeRequest = addNoteOnMergeRequest;
         this.addVoteOnMergeRequest = addVoteOnMergeRequest;
-        this.allowAllBranches = allowAllBranches;
-        this.allowedBranches = allowedBranches;
+        this.allowedSourceBranches = allowedSourceBranches != null ?
+            allowedSourceBranches : ".*";
     }
 
     public boolean getTriggerOnPush() {
@@ -104,21 +100,21 @@ public class GitLabPushTrigger extends Trigger<AbstractProject<?, ?>> {
         return addVoteOnMergeRequest;
     }
 
-    public boolean getAllowAllBranches() {
-        return allowAllBranches;
-    }
-
     public boolean getCiSkip() {
         return ciSkip;
     }
 
-    public List<String> getAllowedBranches() {
-    	return allowedBranches;
+    public String getAllowedSourceBranches() {
+    	return allowedSourceBranches;
+    }
+
+    public void setAllowedSourceBranches(String allowedSourceBranches) {
+        this.allowedSourceBranches = allowedSourceBranches;
     }
 
     public void onPost(final GitLabPushRequest req) {
-    	boolean allowBuild = allowAllBranches || (allowedBranches.isEmpty() || allowedBranches.contains(getSourceBranch(req)));
-    	if (triggerOnPush && (allowBuild)) {
+    	boolean allowBuild = getSourceBranch(req).matches(allowedSourceBranches);
+        if (triggerOnPush && (allowBuild)) {
             getDescriptor().queue.execute(new Runnable() {
 
                 public void run() {
@@ -334,7 +330,7 @@ public class GitLabPushTrigger extends Trigger<AbstractProject<?, ?>> {
     	} else {
     		result = ((GitLabMergeRequest)req).getObjectAttribute().getSourceBranch();
     	}
-    	
+
     	return result;
     }
     
